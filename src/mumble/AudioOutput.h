@@ -103,6 +103,9 @@ protected:
 	void initializeMixer(const unsigned int *chanmasks, bool forceheadphone = false);
 	bool mix(void *output, unsigned int frameCount);
 
+	virtual void prepareOutputBuffers(unsigned int frameCount, QList< AudioOutputBuffer * > *qlMix,
+									  QList< AudioOutputBuffer * > *qlDel);
+
 public:
 	void wipe();
 

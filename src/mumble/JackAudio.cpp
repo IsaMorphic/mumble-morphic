@@ -4,6 +4,9 @@
 // Mumble source tree or at <https://www.mumble.info/LICENSE>.
 
 #include "JackAudio.h"
+#include "AudioOutputBuffer.h"
+#include "ServerHandler.h"
+#include "VoiceRecorder.h"
 
 #include "Utils.h"
 #include "Global.h"
@@ -232,6 +235,7 @@ JackAudioSystem::JackAudioSystem() : bAvailable(false), users(0), client(nullptr
 	RESOLVE(jack_port_by_name)
 	RESOLVE(jack_port_flags)
 	RESOLVE(jack_port_get_buffer)
+	RESOLVE(jack_port_rename)
 	RESOLVE(jack_ringbuffer_create)
 	RESOLVE(jack_ringbuffer_free)
 	RESOLVE(jack_ringbuffer_mlock)
@@ -519,6 +523,22 @@ bool JackAudioSystem::disconnectPort(jack_port_t *port) {
 	const auto ret = jack_port_disconnect(client, port);
 	if (ret != 0) {
 		qWarning("JackAudioSystem: unable to disconnect port - jack_port_disconnect() returned %i", ret);
+		return false;
+	}
+
+	return true;
+}
+
+bool JackAudioSystem::renamePort(jack_port_t *port, const char *name) {
+	QMutexLocker lock(&qmWait);
+
+	if (!client || !port) {
+		return false;
+	}
+
+	const auto ret = jack_port_rename(client, port, name);
+	if (ret != 0) {
+		qWarning("JackAudioSystem: unable to rename port - jack_port_rename() returned %i", ret);
 		return false;
 	}
 
@@ -960,8 +980,23 @@ bool JackAudioOutput::unregisterPorts() {
 		}
 	}
 
+	for (auto port : userPorts.values()) {
+		if (!port) {
+			continue;
+		}
+
+		if (!jas->unregisterPort(port)) {
+			qWarning("JackAudioOutput: unable to unregister port named \"%s\"",
+					 userPorts.key(port).toStdString().c_str());
+			ret = false;
+		}
+	}
+
+
+
 	outputBuffers.clear();
 	ports.clear();
+	userPorts.clear();
 
 	return ret;
 }
@@ -1057,6 +1092,77 @@ bool JackAudioOutput::process(const jack_nframes_t frames) {
 	}
 
 	return true;
+}
+
+void JackAudioOutput::prepareOutputBuffers(unsigned int frameCount, QList< AudioOutputBuffer * > *qlMix,
+										   QList< AudioOutputBuffer * > *qlDel) {
+	ServerHandlerPtr sh = Global::get().sh;
+	VoiceRecorderPtr recorder;
+	if (sh) {
+		recorder = Global::get().sh->recorder;
+	}
+
+	// Keep track of ports we've filled the audio of.
+	QList< jack_port_t * > qlPortsYetToFill(userPorts.values());
+
+	// Register user ports based on who is currently present in qmOutputs and route their audio to JACK.
+	// Don't care if users get removed for now. TODO: maybe at some point we do.
+	QMultiHash< const ClientUser *, AudioOutputBuffer * >::const_iterator it = qmOutputs.constBegin();
+	while (it != qmOutputs.constEnd()) {
+		const ClientUser *user   = it.key();
+		AudioOutputBuffer *audio = it.value();
+
+		if (!user || !recorder || (recorder && !recorder->isTransportEnabled())) {
+			if (audio->prepareSampleBuffer(frameCount)) {
+				qlMix->append(audio);
+			} else {
+				qlDel->append(audio);
+			}
+
+			++it;
+			continue;
+		}
+
+		QString qsPortName = user->qsName;
+		qsPortName         = qsPortName.prepend("user_");
+		if (!userPorts[qsPortName]) {
+			auto port = jas->registerPort(qsPortName.toStdString().c_str(), JackPortIsOutput);
+			if (!port) {
+				qWarning("JackAudioOutput: unable to register user port \"%s\"", qsPortName.toStdString().c_str());
+			} else {
+				userPorts[qsPortName] = port;
+			}
+		}
+
+		if (audio->prepareSampleBuffer(frameCount)) {
+			qlPortsYetToFill.removeOne(userPorts[qsPortName]);
+			qlMix->append(audio);
+
+			auto outputBuffer = (float *) jas->getPortBuffer(userPorts[qsPortName], frameCount);
+			if (audio->bStereo) {
+				// Mix down stereo to mono. TODO: stereo record support
+				// frame: for a stereo stream, the [LR] pair inside ...[LR]LRLRLR.... is a frame
+				for (unsigned int i = 0; i < frameCount; ++i) {
+					outputBuffer[i] = (audio->pfBuffer[2 * i] / 2.0 + audio->pfBuffer[2 * i + 1] / 2.0);
+				}
+			} else {
+				for (unsigned int i = 0; i < frameCount; ++i) {
+					outputBuffer[i] = audio->pfBuffer[i];
+				}
+			}
+		} else {
+			qlDel->append(audio);
+		}
+
+		++it;
+	}
+
+	for (auto port : qlPortsYetToFill) {
+		if (port) {
+			auto outputBuffer = jas->getPortBuffer(port, frameCount);
+			memset(outputBuffer, 0, sizeof(float) * frameCount);
+		}
+	}
 }
 
 void JackAudioOutput::run() {

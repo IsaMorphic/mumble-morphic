@@ -311,7 +311,7 @@ void VoiceRecorder::run() {
 			break;
 		}
 
-		while (!m_abort && !m_recordBuffer.isEmpty()) {
+		while (!(m_config.mixDownMode && m_config.transportEnable) && !m_abort && !m_recordBuffer.isEmpty()) {
 			boost::shared_ptr< RecordBuffer > rb;
 			{
 				QMutexLocker l(&m_bufferLock);
@@ -428,6 +428,10 @@ RecordUser &VoiceRecorder::getRecordUser() const {
 
 bool VoiceRecorder::isInMixDownMode() const {
 	return m_config.mixDownMode;
+}
+
+bool VoiceRecorder::isTransportEnabled() const {
+	return m_config.transportEnable;
 }
 
 QString VoiceRecorderFormat::getFormatDescription(VoiceRecorderFormat::Format fm) {

@@ -23,6 +23,10 @@ public:
 
 	void closeEvent(QCloseEvent *evt) Q_DECL_OVERRIDE;
 public slots:
+	void on_qrbDownmix_clicked();
+	void on_qrbMultichannel_clicked();
+	void on_qrbMultichannelAndTransport_clicked();
+	void on_qrbTransportStandalone_clicked();
 	void on_qpbStart_clicked();
 	void on_qpbStop_clicked();
 	void on_qtTimer_timeout();

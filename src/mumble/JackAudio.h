@@ -28,7 +28,9 @@ struct jack_ringbuffer_data_t {
 };
 
 typedef QVector< jack_port_t * > JackPorts;
+typedef QHash< QString, jack_port_t * > JackNamedPorts;
 typedef QVector< jack_default_audio_sample_t * > JackBuffers;
+typedef QVector< jack_ringbuffer_t * > JackRingBuffers;
 
 class JackAudioInit;
 
@@ -68,6 +70,7 @@ protected:
 	int (*jack_port_unregister)(jack_client_t *client, jack_port_t *port);
 	int (*jack_port_flags)(const jack_port_t *port);
 	void *(*jack_port_get_buffer)(jack_port_t *port, jack_nframes_t frames);
+	int (*jack_port_rename)(jack_client_t *client, jack_port_t *port, const char *name);
 	void (*jack_free)(void *ptr);
 	jack_client_t *(*jack_client_open)(const char *client_name, jack_options_t options, jack_status_t *status, ...);
 	jack_nframes_t (*jack_get_sample_rate)(jack_client_t *client);
@@ -100,6 +103,7 @@ public:
 	bool unregisterPort(jack_port_t *port);
 	bool connectPort(jack_port_t *sourcePort, jack_port_t *destinationPort);
 	bool disconnectPort(jack_port_t *port);
+	bool renamePort(jack_port_t *port, const char *name);
 
 	jack_ringbuffer_t *ringbufferCreate(const size_t size);
 	void ringbufferFree(jack_ringbuffer_t *buffer);
@@ -159,8 +163,11 @@ protected:
 	QMutex qmWait;
 	QSemaphore qsSleep;
 	JackPorts ports;
+	JackNamedPorts userPorts;
 	JackBuffers outputBuffers;
 	jack_ringbuffer_t *buffer;
+	void prepareOutputBuffers(unsigned int frameCount, QList< AudioOutputBuffer * > *qlMix,
+							  QList< AudioOutputBuffer * > *qlDel) override;
 
 public:
 	bool isReady();
