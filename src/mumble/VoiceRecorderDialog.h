@@ -17,6 +17,8 @@ private:
 
 	QTimer *qtTimer;
 
+	void guardTransportRecording();
+
 public:
 	explicit VoiceRecorderDialog(QWidget *p = nullptr);
 	~VoiceRecorderDialog() Q_DECL_OVERRIDE;

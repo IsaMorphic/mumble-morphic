@@ -86,7 +86,7 @@
 	PROCESS(Settings::RecordingMode, RecordingMixdown, "Mixdown")                                   \
 	PROCESS(Settings::RecordingMode, RecordingMultichannel, "Multichannel")                         \
 	PROCESS(Settings::RecordingMode, RecordingMultichannelAndTransport, "MultichannelAndTransport") \
-	PROCESS(Settings::RecordingMode, RecordingTransportStandalone, "MultichannelAndTransport")
+	PROCESS(Settings::RecordingMode, RecordingTransportStandalone, "TransportStandalone")
 
 #define SEARCH_USER_ACTION_VALUES                           \
 	PROCESS(Search::SearchDialog::UserAction, NONE, "None") \

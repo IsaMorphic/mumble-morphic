@@ -26,6 +26,8 @@ VoiceRecorderDialog::VoiceRecorderDialog(QWidget *p) : QDialog(p), qtTimer(new Q
 	qleTargetDirectory->setText(Global::get().s.qsRecordingPath);
 	qleFilename->setText(Global::get().s.qsRecordingFile);
 
+	guardTransportRecording();
+
 	qrbDownmix->setChecked(Global::get().s.rmRecordingMode == Settings::RecordingMixdown);
 	qrbMultichannel->setChecked(Global::get().s.rmRecordingMode == Settings::RecordingMultichannel);
 	qrbMultichannelAndTransport->setChecked(Global::get().s.rmRecordingMode
@@ -76,6 +78,18 @@ VoiceRecorderDialog::VoiceRecorderDialog(QWidget *p) : QDialog(p), qtTimer(new Q
 
 VoiceRecorderDialog::~VoiceRecorderDialog() {
 	reset();
+}
+
+void VoiceRecorderDialog::guardTransportRecording() {
+	bool aoSupportsTransport = Global::get().ao->supportsTransportRecording();
+	if (aoSupportsTransport) {
+		qrbMultichannelAndTransport->setEnabled(true);
+		qrbTransportStandalone->setEnabled(true);
+	} else {
+		qrbMultichannelAndTransport->setDisabled(true);
+		qrbTransportStandalone->setDisabled(true);
+		Global::get().s.rmRecordingMode = Settings::RecordingMixdown;
+	}
 }
 
 void VoiceRecorderDialog::closeEvent(QCloseEvent *evt) {
@@ -289,6 +303,8 @@ void VoiceRecorderDialog::reset(bool resettimer) {
 
 	qgbMode->setEnabled(true);
 	qgbOutput->setDisabled(qrbTransportStandalone->isChecked());
+
+	guardTransportRecording();
 
 	if (resettimer)
 		qlTime->setText(QLatin1String("00:00:00"));

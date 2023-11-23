@@ -6,6 +6,8 @@
 #ifndef MUMBLE_MUMBLE_JACKAUDIO_H_
 #define MUMBLE_MUMBLE_JACKAUDIO_H_
 
+#include <map>
+
 #include "AudioInput.h"
 #include "AudioOutput.h"
 
@@ -28,9 +30,9 @@ struct jack_ringbuffer_data_t {
 };
 
 typedef QVector< jack_port_t * > JackPorts;
-typedef QHash< QString, jack_port_t * > JackNamedPorts;
+typedef std::map< QString, jack_port_t * > JackNamedPorts;
 typedef QVector< jack_default_audio_sample_t * > JackBuffers;
-typedef QVector< jack_ringbuffer_t * > JackRingBuffers;
+typedef std::map< QString, jack_ringbuffer_t * > JackNamedBuffers;
 
 class JackAudioInit;
 
@@ -160,12 +162,18 @@ private:
 
 protected:
 	volatile bool bReady;
+
 	QMutex qmWait;
 	QSemaphore qsSleep;
+
 	JackPorts ports;
 	JackNamedPorts userPorts;
+
 	JackBuffers outputBuffers;
+	JackNamedBuffers userBuffers;
+
 	jack_ringbuffer_t *buffer;
+
 	void prepareOutputBuffers(unsigned int frameCount, QList< AudioOutputBuffer * > *qlMix,
 							  QList< AudioOutputBuffer * > *qlDel) override;
 
@@ -181,6 +189,8 @@ public:
 	bool disconnectPorts();
 
 	void run() Q_DECL_OVERRIDE;
+	bool supportsTransportRecording() const Q_DECL_OVERRIDE;
+
 	JackAudioOutput();
 	~JackAudioOutput() Q_DECL_OVERRIDE;
 };
