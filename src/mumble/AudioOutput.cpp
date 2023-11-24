@@ -408,7 +408,7 @@ void AudioOutput::prepareOutputBuffers(unsigned int frameCount, QList< AudioOutp
 									   QList< AudioOutputBuffer * > *qlDel) {
 	// Get the users that are currently talking (and are thus serving as an audio source)
 	QMultiHash< const ClientUser *, AudioOutputBuffer * >::const_iterator it = qmOutputs.constBegin();
-	while (it != qmOutputs.constEnd()) {
+	for (int i = 0; i < qmOutputs.count(); i++) {
 		AudioOutputBuffer *buffer = it.value();
 		if (!buffer->prepareSampleBuffer(frameCount)) {
 			qlDel->append(buffer);
@@ -787,4 +787,8 @@ unsigned int AudioOutput::getMixerFreq() const {
 
 void AudioOutput::setBufferSize(unsigned int bufferSize) {
 	iBufferSize = bufferSize;
+}
+
+bool AudioOutput::supportsTransportRecording() const {
+	return false;
 }

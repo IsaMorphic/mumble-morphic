@@ -133,6 +133,8 @@ public:
 	void removeToken(AudioOutputToken &);
 	void removeUser(const ClientUser *);
 
+	virtual bool supportsTransportRecording() const;
+
 signals:
 	/// Signal emitted whenever an audio source has been fetched
 	///
